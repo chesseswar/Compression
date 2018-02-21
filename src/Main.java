@@ -12,25 +12,31 @@ public class Main {
         }
 
         for (String s : files) {
+            BitInputStream bitInputStream = new BitInputStream(s);
             in = new Scanner(new File(s));
 
             //array with frequencies of 256 different characters
             int[] freqs = new int[256];
 
-            //concatenate file into huge string to account for spaces
-            String bigString = "";
-            while(in.hasNext()){
-                bigString += in.nextLine();
+            //read the file, get frequencies of each set of 8 bits (each character)
+            int read = 0;
+            int length = 0;
+            while (true){
+                try {
+                    read = bitInputStream.read();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+                if (read == -1) {
+                    break;
+                }
+
+                freqs[read]++;
+                length++;
             }
 
-            //each letter takes up 8 bits
-            int startSize = bigString.length() * 8;
-
-            //fill freq array with various character frequencies
-            char[] input = bigString.toCharArray();
-            for (char c : input){
-                freqs[(int)c]++;
-            }
+            int startSize = length * 8;
 
             //fill initial priority queue with leaves of every character that appears at least once
             PriorityQueue<Node> frequencies = new PriorityQueue<>();
@@ -52,14 +58,33 @@ public class Main {
             getCodes(frequencies.peek(), "");
 
             //output compressed file
-            PrintWriter writer = new PrintWriter(new FileWriter(s.substring(0, s.length()-4) + "COMPRESSED.txt"));
-            for (char c : input){
-                writer.write(codes.get(c));
-                endSize += codes.get(c).length();
+            BitOutputStream bitOutputStream = new BitOutputStream(s.substring(0, s.length()-4) + "COMPRESSED.xd");
+            bitInputStream.reset();
+            read = 0;
+            while (true){
+                try {
+                    read = bitInputStream.read();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+                if (read == -1) {
+                    break;
+                }
+                String code = codes.get((char)read);
+                endSize += code.length();
+                bitOutputStream.writeBits(code.length(), Integer.parseInt(code, 2));
             }
 
+            bitOutputStream.close();
+
+
             //output stats (sizes of before/after files)
-            writer = new PrintWriter(new FileWriter("Compression Stats.txt"));
+            System.out.println(s);
+            System.out.println("start size (bits): " + startSize + "\nend size (bits): " + endSize);
+            System.out.println();
+
+            PrintWriter writer = new PrintWriter(new FileWriter("Compression Stats.txt"));
             writer.write(s);
             writer.write("start size (bits): " + startSize + "\nend size (bits): " + endSize);
             writer.write("\n");
@@ -67,12 +92,11 @@ public class Main {
             writer.close();
 
             //output decompressed file
+            bitInputStream = new BitInputStream(s.substring(0, s.length()-4) + "COMPRESSED.xd");
             writer = new PrintWriter(new FileWriter(s.substring(0, s.length()-4) + "DECOMPRESSED.txt"));
-            in = new Scanner(new File(s.substring(0, s.length()-4) + "COMPRESSED.txt"));
-            char[] compressed = in.nextLine().toCharArray();
             Node current = frequencies.peek();
-            for (int i = 0; i < compressed.length; i++){
-                current = (compressed[i] == '0' ? current.left : current.right);
+            for (int i = 0; i < endSize; i++){
+                current = (bitInputStream.readBits(1) == 0 ? current.left : current.right);
                 if (current.left == null && current.right == null) {
                     writer.write(current.value);
                     current = frequencies.peek();
