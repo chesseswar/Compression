@@ -10,7 +10,7 @@ public class Main {
         while (in.hasNext()){
             files.add(in.nextLine());
         }
-
+        PrintWriter writerStat = new PrintWriter(new FileWriter("Compression Stats.txt"));
         for (String s : files) {
             BitInputStream bitInputStream = new BitInputStream(s);
             in = new Scanner(new File(s));
@@ -82,18 +82,19 @@ public class Main {
             //output stats (sizes of before/after files)
             System.out.println(s);
             System.out.println("start size (bits): " + startSize + "\nend size (bits): " + endSize);
+            System.out.println(1 - ((double) endSize / startSize) * 100 + "% compressed");
             System.out.println();
 
-            PrintWriter writer = new PrintWriter(new FileWriter("Compression Stats.txt"));
-            writer.write(s);
-            writer.write("start size (bits): " + startSize + "\nend size (bits): " + endSize);
-            writer.write("\n");
 
-            writer.close();
+            writerStat.write(s);
+            writerStat.write("start size (bits): " + startSize + "\nend size (bits): " + endSize);
+            writerStat.write((1 - ((double) endSize / startSize) * 100 + "% compressed"));
+            writerStat.write("\n");
+
 
             //output decompressed file
             bitInputStream = new BitInputStream(s.substring(0, s.length()-4) + "COMPRESSED.xd");
-            writer = new PrintWriter(new FileWriter(s.substring(0, s.length()-4) + "DECOMPRESSED.txt"));
+            PrintWriter writer = new PrintWriter(new FileWriter(s.substring(0, s.length()-4) + "DECOMPRESSED.txt"));
             Node current = frequencies.peek();
             for (int i = 0; i < endSize; i++){
                 current = (bitInputStream.readBits(1) == 0 ? current.left : current.right);
@@ -105,6 +106,7 @@ public class Main {
 
             writer.close();
         }
+        writerStat.close();
     }
 
     public static void getCodes(Node root, String code){
